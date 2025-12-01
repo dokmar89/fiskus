@@ -1,21 +1,16 @@
-import streamlit as st
-import google.generativeai as genai
+import { GoogleGenAI, Content } from "@google/genai";
+import { Message } from '../types';
 
-# 1. Konfigurace stránky
-st.set_page_config(page_title="Moje AI Aplikace", page_icon="🤖")
+const getClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key not found in environment variables");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
-# 2. Načtení API klíče ze "Secrets" (bezpečné úložiště ve Streamlitu)
-# Pokud to zkoušíš jen u sebe na PC, můžeš klíč vložit přímo do uvozovek,
-# ale pro nahrání na internet použij tento bezpečný způsob.
-try:
-    api_key = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=api_key)
-except Exception:
-    st.error("Chybí API klíč! Nastav ho v .streamlit/secrets.toml nebo v nastavení cloudu.")
-    st.stop()
-
-SYSTEM_INSTRUCTIONS = """"
-
+// System instruction defines the persona and output format
+const SYSTEM_INSTRUCTION = `
 Jste expertní psychologické konzilium, které v sobě integruje znalosti největších myslitelů v oboru: Sigmunda Freuda, C. G. Junga, Carla Rogerse a moderní Kognitivně behaviorální terapie (KBT).
 
 VAŠE POSLÁNÍ:
@@ -52,49 +47,50 @@ Zde napište jasné, dlouhé a srozumitelné shrnutí v běžné řeči. Co z to
 
 [[ODPOVĚĎ]]:
 Zde napište finální promluvu ke klientovi. To je to, co mu "řeknete do očí". Mluvte jako zkušený vedoucí kliniky, který slyšel názory svého týmu a nyní vynáší verdikt. Buďte konkrétní, vysvětlující a jděte k jádru problému.
-"""
-# ------------------------------------------------------------------
+`;
 
-# 4. Nastavení modelu (používáme Gemini 1.5 Flash - je rychlý a v free tieru)
-# Pokud chceš chytřejší, ale pomalejší model, přepiš na "gemini-1.5-pro"
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
-    system_instruction=SYSTEM_INSTRUCTIONS
-)
+export const streamTherapyResponse = async (
+  history: Message[],
+  userMessage: string,
+  onChunk: (content: string, rationale: string) => void
+) => {
+  const ai = getClient();
+  
+  // Convert app history to Gemini Content format
+  const formattedHistory: Content[] = history.map(msg => ({
+    role: msg.role === 'model' ? 'model' : 'user',
+    parts: [{ text: msg.role === 'model' 
+      ? `[[ANALÝZA]]: ${msg.rationale || ''}\n[[ODPOVĚĎ]]: ${msg.content}` 
+      : msg.content 
+    }]
+  }));
 
-# 5. Nadpis na stránce
-st.title("🤖 Moje AI Aplikace")
-st.caption("Ptej se na cokoliv...")
+  const chat = ai.chats.create({
+    model: 'gemini-2.5-flash',
+    config: {
+      systemInstruction: SYSTEM_INSTRUCTION,
+      temperature: 0.7, // Slightly higher for creative synthesis of theories
+    },
+    history: formattedHistory
+  });
 
-# 6. Inicializace historie chatu (aby si AI pamatovala kontext)
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-    st.session_state.chat_session = model.start_chat(history=[])
+  const result = await chat.sendMessageStream({ message: userMessage });
 
-# 7. Zobrazení historie chatu na obrazovce
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+  let fullBuffer = '';
+  
+  for await (const chunk of result) {
+    const text = chunk.text;
+    if (text) {
+      fullBuffer += text;
+      
+      // Parse the buffer continuously
+      const analysisMatch = fullBuffer.match(/\[\[ANALÝZA\]\]:([\s\S]*?)(?=\[\[ODPOVĚĎ\]\]|$)/);
+      const responseMatch = fullBuffer.match(/\[\[ODPOVĚĎ\]\]:([\s\S]*)/);
 
-# 8. Hlavní smyčka: Čekání na vstup od uživatele
-if prompt := st.chat_input("Napiš zprávu..."):
-    # Zobrazit zprávu uživatele
-    st.chat_message("user").markdown(prompt)
-    st.session_state.messages.append({"role": "user", "content": prompt})
+      const currentRationale = analysisMatch ? analysisMatch[1].trim() : '';
+      const currentResponse = responseMatch ? responseMatch[1].trim() : '';
 
-    # Získat odpověď od AI
-    try:
-        response = st.session_state.chat_session.send_message(prompt)
-        
-        # Zobrazit odpověď AI
-        with st.chat_message("assistant"):
-            st.markdown(response.text)
-        
-        # Uložit do historie
-        st.session_state.messages.append({"role": "assistant", "content": response.text})
-        
-    except Exception as e:
-        st.error(f"Došlo k chybě: {e}")
-
-
-
+      onChunk(currentResponse, currentRationale);
+    }
+  }
+};
