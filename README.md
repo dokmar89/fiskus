@@ -1,19 +1,19 @@
-# Fiskus — incomplete AI experiment
+# Fiskus — nedokončený experiment s AI
 
-A small experimental snapshot containing a generative-AI streaming implementation and Python dependency metadata.
+Malý experimentální projekt obsahující implementaci průběžných odpovědí generativního modelu a seznam závislostí pro Python.
 
-**Status:** Legacy/incomplete; the checked-in files do not form a runnable Python application.
+**Stav:** Starší/nedokončený projekt; uložené soubory netvoří spustitelnou aplikaci v Pythonu.
 
-## What is actually present
+## Skutečný obsah
 
-- `app.py` contains TypeScript imports and a `streamTherapyResponse` export using `@google/genai`, despite its Python extension.
-- `requirements.txt` lists Streamlit and the Python Google generative-AI library.
-- `.devcontainer/devcontainer.json` provides development-container configuration.
+- `app.py` navzdory příponě obsahuje importy TypeScriptu a export `streamTherapyResponse` využívající `@google/genai`.
+- `requirements.txt` uvádí Streamlit a knihovnu Google pro generativní AI v Pythonu.
+- `.devcontainer/devcontainer.json` obsahuje konfiguraci vývojového kontejneru.
 
-## Setup limitation
+## Omezení spuštění
 
-Do not assume `streamlit run app.py` works: the file is not Python. Recover the intended source layout and runtime before installing or deploying this project. Similar conversational-AI work is present in `psycholog`; this snapshot is not presented as an independent finished product.
+Příkaz `streamlit run app.py` nelze považovat za funkční: soubor není napsaný v Pythonu. Před instalací či nasazením je nutné obnovit zamýšlenou strukturu a zvolit běhové prostředí. Příbuzný experiment s konverzační AI je v `psycholog`; tato kopie není prezentována jako samostatný dokončený produkt.
 
-## Maintenance direction
+## Další postup
 
-Choose one runtime, restore the missing application structure and test a minimal response flow with synthetic inputs. Provider credentials belong outside source control and private keys must stay outside browser bundles. This experiment is not a clinical or diagnostic tool.
+Zvolit jeden jazyk a běhové prostředí, doplnit chybějící strukturu a ověřit základní průchod odpovědi na fiktivních datech. Přihlašovací údaje poskytovatele patří mimo Git a soukromé klíče nesmějí být v klientském balíčku. Nejde o klinický ani diagnostický nástroj.
